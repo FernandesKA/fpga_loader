@@ -11,13 +11,14 @@ static void usage(const char* prog)
     std::fprintf(stderr,
         "Usage: %s [OPTIONS] <bitstream.bit|.bin>\n"
         "\n"
-        "Methods:\n"
-        "  --method sysfs    Trigger load via fpga_manager sysfs (default)\n"
+        "Methods (-m / --method):\n"
+        "  bitstream         Trigger load via fpga_manager sysfs (default)\n"
         "                    Xilinx BSP / mainline kernels with firmware_name attr\n"
-        "  --method overlay  Apply device-tree overlay via configfs\n"
+        "  overlay           Apply device-tree overlay via configfs\n"
         "                    Requires --dtbo and a .dtbo with fpga-region node\n"
         "\n"
         "Options:\n"
+        "  -m, --method <method>  Loading method: bitstream|overlay\n"
         "  --manager <path>  Path to fpga_manager sysfs dir\n"
         "                    [default: /sys/class/fpga_manager/fpga0]\n"
         "  --firmware <dir>  Firmware search directory\n"
@@ -31,18 +32,18 @@ static void usage(const char* prog)
         "  --help            Show this help\n"
         "\n"
         "Examples:\n"
-        "  # Sysfs (Xilinx BSP):\n"
+        "  # Bitstream via fpga_manager (Xilinx BSP):\n"
         "  %s design_1.bit\n"
         "\n"
         "  # ConfigFS overlay (mainline):\n"
-        "  %s --method overlay --dtbo fpga.dtbo design_1.bin\n",
+        "  %s -m overlay --dtbo fpga.dtbo design_1.bin\n",
         prog, prog, prog);
 }
 
-enum class Method { Sysfs, Overlay };
+enum class Method { Bitstream, Overlay };
 
 struct Args {
-    Method      method          = Method::Sysfs;
+    Method      method          = Method::Bitstream;
     std::string bitstream;
     std::string dtbo;
     std::string manager_path    = "/sys/class/fpga_manager/fpga0";
@@ -69,9 +70,9 @@ static bool parse_args(int argc, char** argv, Args& a)
 
         if (arg == "--help" || arg == "-h") {
             return false;
-        } else if (arg == "--method") {
+        } else if (arg == "--method" || arg == "-m") {
             const char* m = next(); if (!m) return false;
-            if (std::strcmp(m, "sysfs") == 0)        a.method = Method::Sysfs;
+            if (std::strcmp(m, "bitstream") == 0)    a.method = Method::Bitstream;
             else if (std::strcmp(m, "overlay") == 0) a.method = Method::Overlay;
             else { std::fprintf(stderr, "error: unknown method '%s'\n", m); return false; }
         } else if (arg == "--manager") {
@@ -132,7 +133,7 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    if (a.method == Method::Sysfs) {
+    if (a.method == Method::Bitstream) {
         fpga::FpgaManagerConfig cfg;
         cfg.manager_path = a.manager_path;
         cfg.firmware_dir = a.firmware_dir;
