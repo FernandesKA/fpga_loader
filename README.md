@@ -62,14 +62,58 @@ cmake --build build
 После `source` CMake автоматически подхватывает `CC`, `CXX`, `CFLAGS`,
 `CXXFLAGS`, `LDFLAGS` и `--sysroot` из окружения.
 
-
 ### Установка
 
 ```sh
 cmake --install build --prefix /usr/local
 ```
 
-Устанавливает `fpga-loader` и `mount-configfs.sh` в `<prefix>/bin/`.
+Устанавливает `fpga-loader`, `mount-configfs.sh` и `libfpga_loader.a`
+с заголовками в стандартные директории префикса.
+
+---
+
+## Использование как библиотека (git submodule)
+
+Библиотека `fpga::loader` предоставляет `FpgaManager` и `DtOverlay`
+без CLI-зависимостей. При подключении через `add_subdirectory`
+экзешник `fpga-loader` не собирается.
+
+### Подключение
+
+```sh
+git submodule add <url> third_party/fpga_loader
+```
+
+```cmake
+# CMakeLists.txt вашего проекта
+add_subdirectory(third_party/fpga_loader)
+target_link_libraries(my_app PRIVATE fpga::loader)
+```
+
+Заголовки (`fpga_manager.hpp`, `dt_overlay.hpp`, `file_utils.hpp`)
+подтягиваются автоматически через PUBLIC include директории таргета.
+
+### Пример
+
+```cpp
+#include "fpga_manager.hpp"
+
+fpga::FpgaManagerConfig cfg;
+cfg.manager_path = "/sys/class/fpga_manager/fpga0";
+cfg.verbose      = true;
+
+fpga::FpgaManager mgr(cfg);
+if (!mgr.load("design_1.bit.bin"))
+    return -1;
+```
+
+### Опции CMake
+
+| Переменная | По умолчанию | Описание |
+|-----------|--------------|----------|
+| `FPGA_LOADER_BUILD_EXECUTABLE` | `ON` (top-level) / `OFF` (submodule) | Собирать CLI |
+| `BUILD_SHARED_LIBS` | `OFF` | Собирать как shared library |
 
 ---
 
@@ -110,13 +154,16 @@ fpga-loader [OPTIONS] <bitstream.bit|.bin>
 
 ```sh
 # Полная реконфигурация
-fpga-loader design_1.bit
+fpga-loader design_1.bit.bin
 
 # С подробным выводом
-fpga-loader --verbose design_1.bit
+fpga-loader --verbose design_1.bit.bin
 
 # Частичная реконфигурация
-fpga-loader --flags 0x1 partial.bin
+fpga-loader --flags 0x1 partial.bit.bin
+
+# Статус менеджера и активных оверлеев
+fpga-loader status
 
 # Другой fpga_manager
 fpga-loader --manager /sys/class/fpga_manager/fpga1 design_1.bit
@@ -139,21 +186,27 @@ fpga-loader --method overlay --remove
 
 ## Форматы bitstream
 
-| Расширение | Описание | Zynq-7000 | ZynqMP |
-|-----------|----------|-----------|--------|
-| `.bit` | Xilinx bitstream с заголовком | да | нет |
-| `.bin` | Raw binary (без заголовка) | да | да |
+Протестированный flow для Zynq-7000 использует `.bin`, подготовленный
+через `bootgen`. Файл принято называть `design.bit.bin`, чтобы
+сохранить связь с исходным `.bit`.
 
-ZynqMP не принимает `.bit` напрямую — драйвер `zynqmp-fpga` ожидает raw binary.
+Raw `.bit` напрямую может приниматься некоторыми vendor-драйверами,
+но этот инструмент этого не предполагает и не тестирует.
 
-Конвертация `.bit` → `.bin` через `bootgen`:
+| Расширение | Zynq-7000 | ZynqMP | Примечание |
+|-----------|-----------|--------|------------|
+| `.bit.bin` | да | нет | bootgen → raw binary для Zynq-7000 |
+| `.bin` | да | да | bootgen → raw binary; ZynqMP принимает только этот формат |
+| `.bit` | vendor | нет | зависит от драйвера, не гарантируется |
+
+Конвертация через `bootgen`:
 
 ```sh
 # design.bif:
 # the_ROM_image: { [destination_device=pl] design_1.bit }
 
 # Zynq-7000
-bootgen -image design.bif -arch zynq -o design_1.bin -w
+bootgen -image design.bif -arch zynq -o design_1.bit.bin -w
 
 # ZynqMP
 bootgen -image design.bif -arch zynqmp -o design_1.bin -w

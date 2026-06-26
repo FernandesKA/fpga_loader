@@ -1,3 +1,15 @@
+/**
+ * @file fpga_manager.hpp
+ * @author FernandesKA (fernandes.kir@yandex.ru)
+ * @brief FPGA Manager interface: loads a bitstream via the Linux
+ *        fpga_manager sysfs subsystem (/sys/class/fpga_manager/).
+ * @version 0.1
+ * @date 2026-06-26
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
 #pragma once
 
 #include <chrono>
@@ -32,6 +44,9 @@ public:
 
     // Raw state string from sysfs (e.g. "operating", "programming")
     std::string state() const;
+
+    // Driver name string from sysfs (e.g. "Xilinx Zynq FPGA Manager")
+    std::string name() const;
 
     // True when the fpga_manager sysfs entry exists
     bool available() const;

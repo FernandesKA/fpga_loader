@@ -1,3 +1,15 @@
+/**
+ * @file dt_overlay.cpp
+ * @author FernandesKA (fernandes.kir@yandex.ru)
+ * @brief Device-tree overlay implementation: apply and remove overlays
+ *        via configfs, enumerate active overlays.
+ * @version 0.1
+ * @date 2026-06-26
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
 #include "dt_overlay.hpp"
 #include "file_utils.hpp"
 
@@ -99,6 +111,19 @@ bool DtOverlay::remove(const std::string& name)
 std::string DtOverlay::status(const std::string& name) const
 {
     return utils::read_sysfs(overlay_dir(name) / "status");
+}
+
+std::vector<std::pair<std::string, std::string>> DtOverlay::list() const
+{
+    std::vector<std::pair<std::string, std::string>> result;
+    auto dir = configfs_ / "device-tree" / "overlays";
+    std::error_code ec;
+    for (auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+        if (!entry.is_directory(ec)) continue;
+        std::string n = entry.path().filename().string();
+        result.emplace_back(n, utils::read_sysfs(entry.path() / "status"));
+    }
+    return result;
 }
 
 } // namespace fpga

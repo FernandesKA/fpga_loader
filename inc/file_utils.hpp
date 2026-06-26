@@ -1,3 +1,15 @@
+/**
+ * @file file_utils.hpp
+ * @author FernandesKA (fernandes.kir@yandex.ru)
+ * @brief File and sysfs I/O helpers: firmware copy, sysfs read/write,
+ *        raw binary write to configfs nodes.
+ * @version 0.1
+ * @date 2026-06-26
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
 #pragma once
 
 #include <cstdint>

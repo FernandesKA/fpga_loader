@@ -1,3 +1,14 @@
+/**
+ * @file file_utils.cpp
+ * @author FernandesKA (fernandes.kir@yandex.ru)
+ * @brief File and sysfs I/O helpers implementation.
+ * @version 0.1
+ * @date 2026-06-26
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
 #include "file_utils.hpp"
 
 #include <algorithm>

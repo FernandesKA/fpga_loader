@@ -1,3 +1,15 @@
+/**
+ * @file fpga_manager.cpp
+ * @author FernandesKA (fernandes.kir@yandex.ru)
+ * @brief FPGA Manager implementation: firmware copy, sysfs trigger,
+ *        and state polling until the PL reaches 'operating'.
+ * @version 0.1
+ * @date 2026-06-26
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
 #include "fpga_manager.hpp"
 #include "file_utils.hpp"
 
@@ -21,6 +33,11 @@ bool FpgaManager::available() const
 std::string FpgaManager::state() const
 {
     return utils::read_sysfs(cfg_.manager_path / "state");
+}
+
+std::string FpgaManager::name() const
+{
+    return utils::read_sysfs(cfg_.manager_path / "name");
 }
 
 bool FpgaManager::load(const std::filesystem::path& bitstream, uint32_t flags)
@@ -102,8 +119,13 @@ bool FpgaManager::wait_operating()
         if (s == kStateOperating)
             return true;
 
-        if (s.find("error") != std::string::npos || s == "unknown") {
-            std::fprintf(stderr, "error: FPGA manager entered state '%s'\n", s.c_str());
+        if (s.find("error") != std::string::npos) {
+            std::fprintf(stderr, "error: FPGA manager entered error state: '%s'\n", s.c_str());
+            return false;
+        }
+        if (s == "unknown") {
+            std::fprintf(stderr,
+                "error: FPGA manager state is 'unknown' after programming request\n");
             return false;
         }
 

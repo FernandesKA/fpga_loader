@@ -1,3 +1,15 @@
+/**
+ * @file main.cpp
+ * @author FernandesKA (fernandes.kir@yandex.ru)
+ * @brief CLI entry point: argument parsing and dispatch for bitstream
+ *        and overlay loading methods.
+ * @version 0.1
+ * @date 2026-06-26
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
 #include "dt_overlay.hpp"
 #include "fpga_manager.hpp"
 
@@ -9,11 +21,15 @@
 static void usage(const char* prog)
 {
     std::fprintf(stderr,
-        "Usage: %s -m bitstream [OPTIONS] <bitstream.bit|.bin>\n"
-        "       %s -m overlay  [OPTIONS] --dtbo <file.dtbo>\n"
+        "Usage: %s status\n"
+        "       %s -m bitstream [OPTIONS] <bitstream.bit.bin>\n"
+        "       %s -m overlay   [OPTIONS] --dtbo <file.dtbo>\n"
+        "\n"
+        "Commands:\n"
+        "  status            Show FPGA manager state and active overlays\n"
         "\n"
         "Methods (-m / --method):\n"
-        "  bitstream         Trigger load via fpga_manager sysfs (default)\n"
+        "  bitstream         Load via fpga_manager sysfs (default)\n"
         "                    Xilinx BSP / mainline kernels with firmware_name attr\n"
         "  overlay           Apply device-tree overlay via configfs\n"
         "                    Requires --dtbo and a .dtbo with fpga-region node\n"
@@ -33,12 +49,10 @@ static void usage(const char* prog)
         "  --help            Show this help\n"
         "\n"
         "Examples:\n"
-        "  # Bitstream via fpga_manager (Xilinx BSP):\n"
-        "  %s design_1.bit\n"
-        "\n"
-        "  # ConfigFS overlay (mainline):\n"
+        "  %s status\n"
+        "  %s design_1.bit.bin\n"
         "  %s -m overlay --dtbo fpga.dtbo\n",
-        prog, prog, prog, prog);
+        prog, prog, prog, prog, prog, prog);
 }
 
 enum class Method { Bitstream, Overlay };
@@ -112,8 +126,49 @@ static bool parse_args(int argc, char** argv, Args& a)
     return true;
 }
 
+static int cmd_status(const std::string& manager_path)
+{
+    fpga::FpgaManagerConfig cfg;
+    cfg.manager_path = manager_path;
+    fpga::FpgaManager mgr(cfg);
+
+    std::printf("manager : %s\n", manager_path.c_str());
+    if (mgr.available()) {
+        std::printf("name    : %s\n", mgr.name().c_str());
+        std::printf("state   : %s\n", mgr.state().c_str());
+    } else {
+        std::printf("name    : (not found)\n");
+        std::printf("state   : (not found)\n");
+    }
+
+    fpga::DtOverlay overlay;
+    std::printf("configfs: %s\n", overlay.is_mounted() ? "mounted" : "not mounted");
+
+    if (overlay.is_mounted()) {
+        auto overlays = overlay.list();
+        if (overlays.empty()) {
+            std::printf("overlays: (none)\n");
+        } else {
+            std::printf("overlays:\n");
+            for (auto& [name, st] : overlays)
+                std::printf("  %s: %s\n", name.c_str(), st.c_str());
+        }
+    }
+
+    return EXIT_SUCCESS;
+}
+
 int main(int argc, char** argv)
 {
+    if (argc >= 2 && std::string(argv[1]) == "status") {
+        std::string manager_path = "/sys/class/fpga_manager/fpga0";
+        for (int i = 2; i < argc; ++i) {
+            if (std::string(argv[i]) == "--manager" && i + 1 < argc)
+                manager_path = argv[++i];
+        }
+        return cmd_status(manager_path);
+    }
+
     Args a;
     if (!parse_args(argc, argv, a)) {
         usage(argv[0]);
