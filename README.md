@@ -17,9 +17,20 @@
 ### Общие
 
 - `CONFIG_FPGA=y` — FPGA Manager subsystem
-- `CONFIG_OF_CONFIGFS=y` — только для метода `overlay`
 - Компилятор с поддержкой C++17
 - CMake ≥ 3.16
+
+Для метода `overlay` дополнительно:
+
+- `CONFIG_CONFIGFS_FS=y` — поддержка файловой системы configfs
+- `CONFIG_OF_OVERLAY=y` — поддержка device-tree overlays
+- наличие интерфейса `/sys/kernel/config/device-tree/overlays/` в ядре
+
+> Некоторые vendor-ядра (Xilinx BSP) собирают этот интерфейс через
+> `CONFIG_OF_CONFIGFS=y`. В mainline-ядрах такого символа может не быть:
+> `CONFIG_OF_OVERLAY=y` включает overlay-подсистему, но не гарантирует
+> наличие configfs-интерфейса пространства пользователя — это зависит от
+> версии и конфигурации ядра. Проверить: `ls /sys/kernel/config/device-tree/overlays`.
 
 ### Zynq-7000 (PS: Cortex-A9)
 
