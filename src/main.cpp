@@ -9,7 +9,8 @@
 static void usage(const char* prog)
 {
     std::fprintf(stderr,
-        "Usage: %s [OPTIONS] <bitstream.bit|.bin>\n"
+        "Usage: %s -m bitstream [OPTIONS] <bitstream.bit|.bin>\n"
+        "       %s -m overlay  [OPTIONS] --dtbo <file.dtbo>\n"
         "\n"
         "Methods (-m / --method):\n"
         "  bitstream         Trigger load via fpga_manager sysfs (default)\n"
@@ -36,8 +37,8 @@ static void usage(const char* prog)
         "  %s design_1.bit\n"
         "\n"
         "  # ConfigFS overlay (mainline):\n"
-        "  %s -m overlay --dtbo fpga.dtbo design_1.bin\n",
-        prog, prog, prog);
+        "  %s -m overlay --dtbo fpga.dtbo\n",
+        prog, prog, prog, prog);
 }
 
 enum class Method { Bitstream, Overlay };
@@ -127,13 +128,13 @@ int main(int argc, char** argv)
         return EXIT_SUCCESS;
     }
 
-    if (a.bitstream.empty()) {
-        std::fprintf(stderr, "error: bitstream path required\n");
-        usage(argv[0]);
-        return EXIT_FAILURE;
-    }
-
     if (a.method == Method::Bitstream) {
+        if (a.bitstream.empty()) {
+            std::fprintf(stderr, "error: bitstream path required for bitstream method\n");
+            usage(argv[0]);
+            return EXIT_FAILURE;
+        }
+
         fpga::FpgaManagerConfig cfg;
         cfg.manager_path = a.manager_path;
         cfg.firmware_dir = a.firmware_dir;
@@ -148,8 +149,8 @@ int main(int argc, char** argv)
 
     } else {
         if (a.dtbo.empty()) {
-            std::fprintf(stderr,
-                "error: --dtbo <path> is required for overlay method\n");
+            std::fprintf(stderr, "error: --dtbo is required for overlay method\n");
+            usage(argv[0]);
             return EXIT_FAILURE;
         }
 

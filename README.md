@@ -1,22 +1,38 @@
 # fpga-loader
 
-Утилита командной строки для загрузки bitstream в FPGA-часть Zynq SoC (7000 / ZynqMP) из Linux user-space.
+Утилита командной строки для загрузки bitstream в PL-часть Zynq SoC из Linux user-space
+через стандартный Linux FPGA Manager subsystem.
 
 Поддерживает два метода:
 
 | Метод | Ядро | Интерфейс |
 |-------|------|-----------|
-| `sysfs` | Xilinx BSP / PetaLinux | `/sys/class/fpga_manager/` |
+| `bitstream` | Xilinx BSP / PetaLinux | `/sys/class/fpga_manager/` |
 | `overlay` | Mainline ≥ 4.12 | configfs + device-tree overlay |
 
 ---
 
 ## Требования
 
-- Linux-ядро с `CONFIG_FPGA=y`, `CONFIG_FPGA_MGR_ZYNQ_FPGA=y`
-- Для метода `overlay` дополнительно: `CONFIG_OF_CONFIGFS=y`
+### Общие
+
+- `CONFIG_FPGA=y` — FPGA Manager subsystem
+- `CONFIG_OF_CONFIGFS=y` — только для метода `overlay`
 - Компилятор с поддержкой C++17
 - CMake ≥ 3.16
+
+### Zynq-7000 (PS: Cortex-A9)
+
+- `CONFIG_FPGA_MGR_ZYNQ_FPGA=y` — драйвер `zynq-fpga`
+- Формат bitstream: `.bit` (Xilinx) или `.bin` (raw)
+- FPGA Manager: `/sys/class/fpga_manager/fpga0` (driver: `Xilinx Zynq FPGA Manager`)
+
+### ZynqMP / UltraScale+ (PS: Cortex-A53)
+
+- `CONFIG_FPGA_MGR_ZYNQMP_FPGA=y` — драйвер `zynqmp-fpga`
+- Формат bitstream: `.bin` (raw, без заголовка `.bit`)
+- FPGA Manager: `/sys/class/fpga_manager/fpga0` (driver: `Xilinx ZynqMP FPGA Manager`)
+- Secure bitstream требует дополнительно `CONFIG_ZYNQMP_FIRMWARE=y`
 
 ---
 
@@ -102,7 +118,7 @@ fpga-loader --manager /sys/class/fpga_manager/fpga1 design_1.bit
 sudo mount-configfs.sh
 
 # 2. Загрузить bitstream через overlay
-fpga-loader --method overlay --dtbo fpga.dtbo design_1.bin
+fpga-loader -m overlay --dtbo fpga.dtbo
 
 # 3. Удалить overlay
 fpga-loader --method overlay --remove
@@ -112,17 +128,24 @@ fpga-loader --method overlay --remove
 
 ## Форматы bitstream
 
-| Расширение | Описание | Совместимость |
-|-----------|----------|---------------|
-| `.bit` | Xilinx bitstream с заголовком | Xilinx FPGA manager (BSP) |
-| `.bin` | Бинарный (без заголовка) | Mainline / overlay flow |
+| Расширение | Описание | Zynq-7000 | ZynqMP |
+|-----------|----------|-----------|--------|
+| `.bit` | Xilinx bitstream с заголовком | да | нет |
+| `.bin` | Raw binary (без заголовка) | да | да |
+
+ZynqMP не принимает `.bit` напрямую — драйвер `zynqmp-fpga` ожидает raw binary.
 
 Конвертация `.bit` → `.bin` через `bootgen`:
 
 ```sh
 # design.bif:
 # the_ROM_image: { [destination_device=pl] design_1.bit }
+
+# Zynq-7000
 bootgen -image design.bif -arch zynq -o design_1.bin -w
+
+# ZynqMP
+bootgen -image design.bif -arch zynqmp -o design_1.bin -w
 ```
 
 ---
