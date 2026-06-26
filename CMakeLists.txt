@@ -52,6 +52,14 @@ if(FPGA_LOADER_BUILD_EXECUTABLE)
     install(PROGRAMS scripts/mount-configfs.sh DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
+# ── Tests ─────────────────────────────────────────────────────────────────────
+
+option(FPGA_LOADER_BUILD_TESTS "Build unit tests (requires network for Catch2)" OFF)
+if(FPGA_LOADER_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
 # ── Install ───────────────────────────────────────────────────────────────────
 
 install(TARGETS fpga_loader
