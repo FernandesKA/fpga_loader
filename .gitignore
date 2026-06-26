@@ -1,0 +1,27 @@
+# Build directories
+build*/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+_deps/
+
+# Compiled output
+fpga-loader
+
+# Claude Code
+.claude/
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Editor temp files
+*.swp
+*.swo
+*~
+.DS_Store
