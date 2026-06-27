@@ -45,6 +45,8 @@ static void usage(const char* prog)
         "  --flags <hex>     FPGA manager flags (e.g. 0x1 = partial reconfig)\n"
         "  --timeout <ms>    State poll timeout in ms [default: 5000]\n"
         "  --remove          Remove named overlay and exit [overlay method only]\n"
+        "  --replace         Replace existing overlay (implicit --remove + re-apply)\n"
+        "                    Default: error if overlay already exists [overlay method only]\n"
         "  --verbose         Print progress messages\n"
         "  --help            Show this help\n"
         "\n"
@@ -68,6 +70,7 @@ struct Args {
     int         timeout_ms      = 5000;
     bool        verbose         = false;
     bool        remove_overlay  = false;
+    bool        replace         = false;
 };
 
 static bool parse_args(int argc, char** argv, Args& a)
@@ -112,6 +115,8 @@ static bool parse_args(int argc, char** argv, Args& a)
             a.verbose = true;
         } else if (arg == "--remove") {
             a.remove_overlay = true;
+        } else if (arg == "--replace") {
+            a.replace = true;
         } else if (arg[0] != '-') {
             if (!a.bitstream.empty()) {
                 std::fprintf(stderr, "error: multiple bitstream paths given\n");
@@ -175,6 +180,15 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
+    if (a.method == Method::Overlay && !a.bitstream.empty()) {
+        std::fprintf(stderr,
+            "error: unexpected positional argument '%s' with overlay method\n"
+            "       the bitstream is referenced inside the .dtbo via firmware-name property\n",
+            a.bitstream.c_str());
+        usage(argv[0]);
+        return EXIT_FAILURE;
+    }
+
     if (a.method == Method::Overlay && a.remove_overlay) {
         fpga::DtOverlay overlay;
         if (!overlay.remove(a.overlay_name))
@@ -210,7 +224,7 @@ int main(int argc, char** argv)
         }
 
         fpga::DtOverlay overlay;
-        if (!overlay.apply(a.overlay_name, a.dtbo))
+        if (!overlay.apply(a.overlay_name, a.dtbo, a.replace))
             return EXIT_FAILURE;
 
         std::printf("overlay '%s' applied: status=%s\n",

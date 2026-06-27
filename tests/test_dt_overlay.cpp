@@ -100,16 +100,20 @@ TEST_CASE("DtOverlay: apply() creates overlay dir and writes dtbo") {
     REQUIRE(ca == cb);
 }
 
-TEST_CASE("DtOverlay: apply() removes stale overlay before re-applying") {
+TEST_CASE("DtOverlay: apply() fails when overlay already exists (default)") {
     FakeConfigfs fake;
-    // Empty dir simulates a stale overlay from a previous run (real kernel dirs
-    // are always empty and can be removed with rmdir, not recursive removal).
+    fake.create_overlay_dir("my_overlay");
+    REQUIRE_FALSE(fake.make_overlay().apply("my_overlay", fake.dtbo_file));
+}
+
+TEST_CASE("DtOverlay: apply() replaces existing overlay when replace=true") {
+    FakeConfigfs fake;
     fake.create_overlay_dir("my_overlay");
 
     auto dir = fake.overlay_root / "my_overlay";
     // apply() removes the stale dir, creates a fresh one, and writes dtbo.
-    // It returns false (status stays empty without kernel), but dtbo must exist.
-    fake.make_overlay().apply("my_overlay", fake.dtbo_file);
+    // Returns false (status stays empty without kernel), but dtbo must exist.
+    fake.make_overlay().apply("my_overlay", fake.dtbo_file, /*replace=*/true);
 
     REQUIRE(fs::exists(dir / "dtbo"));
 }

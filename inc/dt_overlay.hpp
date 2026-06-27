@@ -31,8 +31,9 @@ public:
     explicit DtOverlay(std::filesystem::path configfs = "/sys/kernel/config");
 
     // Apply overlay: creates <name> dir and writes dtbo blob.
-    // name must be unique; use remove() first if reloading.
-    bool apply(const std::string& name, const std::filesystem::path& dtbo_path);
+    // Fails if an overlay with that name already exists unless replace=true.
+    bool apply(const std::string& name, const std::filesystem::path& dtbo_path,
+               bool replace = false);
 
     // Remove a previously applied overlay
     bool remove(const std::string& name);

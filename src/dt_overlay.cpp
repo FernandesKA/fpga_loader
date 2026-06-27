@@ -33,7 +33,8 @@ bool DtOverlay::is_mounted() const
     return std::filesystem::is_directory(configfs_ / "device-tree", ec);
 }
 
-bool DtOverlay::apply(const std::string& name, const std::filesystem::path& dtbo_path)
+bool DtOverlay::apply(const std::string& name, const std::filesystem::path& dtbo_path,
+                      bool replace)
 {
     if (!is_mounted()) {
         std::fprintf(stderr,
@@ -51,8 +52,14 @@ bool DtOverlay::apply(const std::string& name, const std::filesystem::path& dtbo
 
     auto dir = overlay_dir(name);
 
-    // Remove stale overlay from a previous run
     if (std::filesystem::exists(dir, ec)) {
+        if (!replace) {
+            std::fprintf(stderr,
+                "error: overlay '%s' already exists\n"
+                "hint:  remove it first with --remove, or re-apply with --replace\n",
+                name.c_str());
+            return false;
+        }
         if (!remove(name))
             return false;
     }

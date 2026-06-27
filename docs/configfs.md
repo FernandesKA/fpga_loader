@@ -1,7 +1,7 @@
 # ConfigFS Device-Tree Overlay Interface
 
-Kernel subsystem: `drivers/of/configfs.c`  
-Kernel config: `CONFIG_OF_CONFIGFS=y`  
+Kernel subsystem: `drivers/of/configfs.c`
+Kernel config: `CONFIG_OF_CONFIGFS=y`
 Mount point: `/sys/kernel/config/device-tree/overlays/`
 
 ## Mounting
@@ -46,7 +46,7 @@ rmdir /sys/kernel/config/device-tree/overlays/fpga0
 
 ## Overlay source for FPGA loading
 
-The overlay must include an `fpga-region` node.  
+The overlay must include an `fpga-region` node.
 The `firmware-name` property is relative to `/lib/firmware/`.
 
 ```dts
@@ -81,7 +81,7 @@ The base DT must define the `fpga_full` (or equivalent) fpga-region:
 fpga_full: fpga-region0 {
     compatible = "fpga-region";
     fpga-mgr = <&devcfg>;          /* Zynq-7000 devcfg */
-    /* fpga-mgr = <&fpga_mgr>; */ /* ZynqMP PSU */
+    /* fpga-mgr = <&fpga_mgr>; */  /* ZynqMP PSU */
     #address-cells = <1>;
     #size-cells = <1>;
     ranges;
