@@ -203,7 +203,7 @@ TEST_CASE("FpgaManager: load() writes flags when flags attribute exists") {
     fake.set_state("operating");
 
     FpgaManager mgr(fake.make_config());
-    REQUIRE(mgr.load(fake.bitstream, FlagPartialReconfig));
+    REQUIRE(mgr.load(fake.bitstream, FpgaFlagPartialReconfig));
     REQUIRE(fake.read_attr("flags") == "1");
 }
 
@@ -214,5 +214,5 @@ TEST_CASE("FpgaManager: load() skips flags write when flags attribute absent") {
     fake.set_state("operating");
 
     FpgaManager mgr(fake.make_config());
-    REQUIRE(mgr.load(fake.bitstream, FlagEncrypted));
+    REQUIRE(mgr.load(fake.bitstream, FpgaFlagEncryptedBitstream));
 }

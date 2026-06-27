@@ -18,13 +18,16 @@
 
 namespace fpga {
 
-// FPGA_MGR_* flags from <linux/fpga/fpga-mgr.h>
+// Userspace mirror of FPGA_MGR_* flags from the Linux kernel header:
+// include/linux/fpga/fpga-mgr.h
+// Keep in sync with the target kernel.
 enum FpgaFlags : uint32_t {
-    FlagNone            = 0,
-    FlagPartialReconfig = 1u << 0,
-    FlagExternalConfig  = 1u << 1,
-    FlagEncrypted       = 1u << 2,
-    FlagBitSwap         = 1u << 3,
+    FpgaFlagNone                = 0,
+    FpgaFlagPartialReconfig     = 1u << 0, // FPGA_MGR_PARTIAL_RECONFIG
+    FpgaFlagExternalConfig      = 1u << 1, // FPGA_MGR_EXTERNAL_CONFIG
+    FpgaFlagEncryptedBitstream  = 1u << 2, // FPGA_MGR_ENCRYPTED_BITSTREAM
+    FpgaFlagBitstreamLsbFirst   = 1u << 3, // FPGA_MGR_BITSTREAM_LSB_FIRST
+    FpgaFlagCompressedBitstream = 1u << 4, // FPGA_MGR_COMPRESSED_BITSTREAM
 };
 
 struct FpgaManagerConfig {
@@ -40,7 +43,7 @@ public:
 
     // Copy bitstream to /lib/firmware and trigger load via sysfs.
     // Supported on Xilinx BSP kernels and mainline >=4.12 with fpga-region sysfs.
-    bool load(const std::filesystem::path& bitstream, uint32_t flags = FlagNone);
+    bool load(const std::filesystem::path& bitstream, uint32_t flags = FpgaFlagNone);
 
     // Raw state string from sysfs (e.g. "operating", "programming")
     std::string state() const;
