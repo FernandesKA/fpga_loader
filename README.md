@@ -1,15 +1,7 @@
 # fpga-loader
 
-Утилита командной строки для загрузки bitstream в PL-часть Zynq SoC из Linux user-space
-через стандартный Linux FPGA Manager subsystem.
-
-Поддерживает два метода:
-
-| Метод | Ядро | Интерфейс |
-|-------|------|-----------|
-| `bitstream` | Xilinx BSP / PetaLinux | `/sys/class/fpga_manager/` |
-| `overlay` | Mainline ≥ 4.12 | configfs + device-tree overlay |
-
+Утилита для загрузки bitstream в PL-часть Zynq SoC из Linux user-space
+через стандартный Linux FPGA subsystem.
 ---
 
 ## Требования
@@ -35,13 +27,13 @@
 ### Zynq-7000 (PS: Cortex-A9)
 
 - `CONFIG_FPGA_MGR_ZYNQ_FPGA=y` — драйвер `zynq-fpga`
-- Формат bitstream: `.bit` (Xilinx) или `.bin` (raw)
+- Формат bitstream: `.bin` (raw)
 - FPGA Manager: `/sys/class/fpga_manager/fpga0` (driver: `Xilinx Zynq FPGA Manager`)
 
 ### ZynqMP / UltraScale+ (PS: Cortex-A53)
 
 - `CONFIG_FPGA_MGR_ZYNQMP_FPGA=y` — драйвер `zynqmp-fpga`
-- Формат bitstream: `.bin` (raw, без заголовка `.bit`)
+- Формат bitstream: `.bin`
 - FPGA Manager: `/sys/class/fpga_manager/fpga0` (driver: `Xilinx ZynqMP FPGA Manager`)
 - Secure bitstream требует дополнительно `CONFIG_ZYNQMP_FIRMWARE=y`
 
@@ -62,22 +54,13 @@ cmake --build build
 После `source` CMake автоматически подхватывает `CC`, `CXX`, `CFLAGS`,
 `CXXFLAGS`, `LDFLAGS` и `--sysroot` из окружения.
 
-### Установка
-
-```sh
-cmake --install build --prefix /usr/local
-```
-
-Устанавливает `fpga-loader`, `mount-configfs.sh` и `libfpga_loader.a`
-с заголовками в стандартные директории префикса.
-
 ---
 
-## Использование как библиотека (git submodule)
+## Использование как библиотеки (git submodule)
 
 Библиотека `fpga::loader` предоставляет `FpgaManager` и `DtOverlay`
 без CLI-зависимостей. При подключении через `add_subdirectory`
-экзешник `fpga-loader` не собирается.
+исполняемый файл `fpga-loader` не собирается. Может быть полезным, если хочется использовать fpga_loader как часть своего проекта.
 
 ### Подключение
 
@@ -187,17 +170,9 @@ fpga-loader --method overlay --remove
 ## Форматы bitstream
 
 Протестированный flow для Zynq-7000 использует `.bin`, подготовленный
-через `bootgen`. Файл принято называть `design.bit.bin`, чтобы
-сохранить связь с исходным `.bit`.
+через `bootgen`.
 
-Raw `.bit` напрямую может приниматься некоторыми vendor-драйверами,
-но этот инструмент этого не предполагает и не тестирует.
-
-| Расширение | Zynq-7000 | ZynqMP | Примечание |
-|-----------|-----------|--------|------------|
-| `.bit.bin` | да | нет | bootgen → raw binary для Zynq-7000 |
-| `.bin` | да | да | bootgen → raw binary; ZynqMP принимает только этот формат |
-| `.bit` | vendor | нет | зависит от драйвера, не гарантируется |
+Raw `.bit` напрямую может приниматься некоторыми vendor-драйверами.
 
 Конвертация через `bootgen`:
 
