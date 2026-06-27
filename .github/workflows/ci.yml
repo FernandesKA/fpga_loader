@@ -2,9 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - "feat/**"
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - "feat/**"
 
 # Official ARM GNU Toolchain version used by both cross-compile jobs.
 # Update here to upgrade both at once.
@@ -44,7 +48,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TC_TRIPLE: "arm-none-linux-gnueabihf"
-      TC_DIR: "${{ runner.temp }}/sdk/arm"
 
     steps:
       - uses: actions/checkout@v4
@@ -59,16 +62,16 @@ jobs:
       - name: Download ARM GNU Toolchain
         if: steps.cache-tc.outputs.cache-hit != 'true'
         run: |
-          mkdir -p "$TC_DIR"
+          mkdir -p "$RUNNER_TEMP/sdk/arm"
           curl -fsSL --max-time 300 \
             "https://developer.arm.com/-/media/Files/downloads/gnu/$ARM_TC_VER/binrel/arm-gnu-toolchain-$ARM_TC_VER-x86_64-$TC_TRIPLE.tar.xz" \
-            | tar -xJ --strip-components=1 -C "$TC_DIR"
+            | tar -xJ --strip-components=1 -C "$RUNNER_TEMP/sdk/arm"
 
       - name: Configure
         run: |
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER="$TC_DIR/bin/$TC_TRIPLE-g++"
+            -DCMAKE_CXX_COMPILER="$RUNNER_TEMP/sdk/arm/bin/$TC_TRIPLE-g++"
 
       - name: Build
         run: cmake --build build --parallel
@@ -79,7 +82,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TC_TRIPLE: "aarch64-none-linux-gnu"
-      TC_DIR: "${{ runner.temp }}/sdk/aarch64"
 
     steps:
       - uses: actions/checkout@v4
@@ -94,16 +96,16 @@ jobs:
       - name: Download ARM GNU Toolchain
         if: steps.cache-tc.outputs.cache-hit != 'true'
         run: |
-          mkdir -p "$TC_DIR"
+          mkdir -p "$RUNNER_TEMP/sdk/aarch64"
           curl -fsSL --max-time 300 \
             "https://developer.arm.com/-/media/Files/downloads/gnu/$ARM_TC_VER/binrel/arm-gnu-toolchain-$ARM_TC_VER-x86_64-$TC_TRIPLE.tar.xz" \
-            | tar -xJ --strip-components=1 -C "$TC_DIR"
+            | tar -xJ --strip-components=1 -C "$RUNNER_TEMP/sdk/aarch64"
 
       - name: Configure
         run: |
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER="$TC_DIR/bin/$TC_TRIPLE-g++"
+            -DCMAKE_CXX_COMPILER="$RUNNER_TEMP/sdk/aarch64/bin/$TC_TRIPLE-g++"
 
       - name: Build
         run: cmake --build build --parallel
