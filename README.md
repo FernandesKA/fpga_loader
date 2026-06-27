@@ -27,14 +27,12 @@
 ### Zynq-7000 (PS: Cortex-A9)
 
 - `CONFIG_FPGA_MGR_ZYNQ_FPGA=y` — драйвер `zynq-fpga`
-- Формат bitstream: `.bin` (raw)
-- FPGA Manager: `/sys/class/fpga_manager/fpga0` (driver: `Xilinx Zynq FPGA Manager`)
+- Формат bitstream: `.bin`
 
 ### ZynqMP / UltraScale+ (PS: Cortex-A53)
 
 - `CONFIG_FPGA_MGR_ZYNQMP_FPGA=y` — драйвер `zynqmp-fpga`
-- Формат bitstream: `.bin`
-- FPGA Manager: `/sys/class/fpga_manager/fpga0` (driver: `Xilinx ZynqMP FPGA Manager`)
+- Формат bitstream: `.bit, .bin`
 - Secure bitstream требует дополнительно `CONFIG_ZYNQMP_FIRMWARE=y`
 
 ---
@@ -106,20 +104,6 @@ if (!mgr.load("design_1.bit.bin"))
 fpga-loader [OPTIONS] <bitstream.bit|.bin>
 ```
 
-### Опции
-
-| Опция | По умолчанию | Описание |
-|-------|-------------|----------|
-| `--method sysfs\|overlay` | `sysfs` | Метод загрузки |
-| `--manager <path>` | `/sys/class/fpga_manager/fpga0` | Путь к fpga_manager |
-| `--firmware <dir>` | `/lib/firmware` | Директория firmware |
-| `--dtbo <path>` | — | Overlay-файл `.dtbo` (только `overlay`) |
-| `--name <name>` | `fpga0` | Имя overlay в configfs |
-| `--flags <hex>` | `0x0` | Флаги fpga_manager (см. ниже) |
-| `--timeout <ms>` | `5000` | Таймаут ожидания состояния |
-| `--remove` | — | Удалить overlay и выйти |
-| `--verbose` | — | Подробный вывод |
-
 ### Флаги (`--flags`)
 
 | Значение | Константа ядра | Описание |
@@ -131,48 +115,10 @@ fpga-loader [OPTIONS] <bitstream.bit|.bin>
 
 ---
 
-## Примеры
-
-### Метод sysfs (Xilinx BSP)
-
-```sh
-# Полная реконфигурация
-fpga-loader design_1.bit.bin
-
-# С подробным выводом
-fpga-loader --verbose design_1.bit.bin
-
-# Частичная реконфигурация
-fpga-loader --flags 0x1 partial.bit.bin
-
-# Статус менеджера и активных оверлеев
-fpga-loader status
-
-# Другой fpga_manager
-fpga-loader --manager /sys/class/fpga_manager/fpga1 design_1.bit
-```
-
-### Метод overlay (mainline)
-
-```sh
-# 1. Монтировать configfs (один раз при загрузке системы)
-sudo mount-configfs.sh
-
-# 2. Загрузить bitstream через overlay
-fpga-loader -m overlay --dtbo fpga.dtbo
-
-# 3. Удалить overlay
-fpga-loader --method overlay --remove
-```
-
----
-
 ## Форматы bitstream
 
 Протестированный flow для Zynq-7000 использует `.bin`, подготовленный
 через `bootgen`.
-
-Raw `.bit` напрямую может приниматься некоторыми vendor-драйверами.
 
 Конвертация через `bootgen`:
 
@@ -210,35 +156,6 @@ fpga-loader/
 └── scripts/
     └── mount-configfs.sh    # Монтирование configfs
 ```
-
----
-
-## Диагностика
-
-```sh
-# Проверить наличие fpga_manager
-ls /sys/class/fpga_manager/
-
-# Текущее состояние
-cat /sys/class/fpga_manager/fpga0/state
-
-# Лог ядра при загрузке
-dmesg | grep -i fpga
-
-# Проверить монтирование configfs
-mountpoint /sys/kernel/config
-```
-
-Возможные состояния (`state`):
-
-| Состояние | Значение |
-|-----------|----------|
-| `unknown` | Состояние не определено |
-| `charge pump enabled` | Инициализация питания |
-| `programming` | Передача bitstream |
-| `initialized` | Программирование завершено |
-| `operating` | FPGA работает (успех) |
-
 ---
 
 ## Лицензия
