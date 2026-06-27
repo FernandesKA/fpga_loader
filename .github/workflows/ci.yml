@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "feat/**"
+  pull_request:
+    branches:
+      - main
+      - "feat/**"
+
+# Official ARM GNU Toolchain version used by both cross-compile jobs.
+# Update here to upgrade both at once.
+env:
+  ARM_TC_VER: "13.3.rel1"
+
+jobs:
+  # ── Native build + unit tests ───────────────────────────────────────────────
+  test:
+    name: Build & Test (native)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Catch2
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: catch2-v3.7.1
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DFPGA_LOADER_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  # ── Cross-compile: Zynq-7000 (arm-none-linux-gnueabihf) ────────────────────
+  cross-arm:
+    name: Cross-compile (Zynq-7000 armhf)
+    runs-on: ubuntu-latest
+    env:
+      TC_TRIPLE: "arm-none-linux-gnueabihf"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache ARM toolchain
+        id: cache-tc
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/sdk/arm
+          key: arm-gnu-toolchain-${{ env.ARM_TC_VER }}-armhf
+
+      - name: Download ARM GNU Toolchain
+        if: steps.cache-tc.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/sdk/arm"
+          curl -fsSL --max-time 300 \
+            "https://developer.arm.com/-/media/Files/downloads/gnu/$ARM_TC_VER/binrel/arm-gnu-toolchain-$ARM_TC_VER-x86_64-$TC_TRIPLE.tar.xz" \
+            | tar -xJ --strip-components=1 -C "$RUNNER_TEMP/sdk/arm"
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER="$RUNNER_TEMP/sdk/arm/bin/$TC_TRIPLE-g++"
+
+      - name: Build
+        run: cmake --build build --parallel
+
+  # ── Cross-compile: ZynqMP (aarch64-none-linux-gnu) ─────────────────────────
+  cross-aarch64:
+    name: Cross-compile (ZynqMP aarch64)
+    runs-on: ubuntu-latest
+    env:
+      TC_TRIPLE: "aarch64-none-linux-gnu"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache AArch64 toolchain
+        id: cache-tc
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/sdk/aarch64
+          key: arm-gnu-toolchain-${{ env.ARM_TC_VER }}-aarch64
+
+      - name: Download ARM GNU Toolchain
+        if: steps.cache-tc.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/sdk/aarch64"
+          curl -fsSL --max-time 300 \
+            "https://developer.arm.com/-/media/Files/downloads/gnu/$ARM_TC_VER/binrel/arm-gnu-toolchain-$ARM_TC_VER-x86_64-$TC_TRIPLE.tar.xz" \
+            | tar -xJ --strip-components=1 -C "$RUNNER_TEMP/sdk/aarch64"
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER="$RUNNER_TEMP/sdk/aarch64/bin/$TC_TRIPLE-g++"
+
+      - name: Build
+        run: cmake --build build --parallel
