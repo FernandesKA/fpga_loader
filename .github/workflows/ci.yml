@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Native build + unit tests ───────────────────────────────────────────────
+  test:
+    name: Build & Test (native)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Catch2
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: catch2-v3.7.1
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DFPGA_LOADER_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  # ── Cross-compile: Zynq-7000 (armhf) ───────────────────────────────────────
+  cross-arm:
+    name: Cross-compile (arm-linux-gnueabihf)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: sudo apt-get install -y --no-install-recommends g++-arm-linux-gnueabihf
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++
+
+      - name: Build
+        run: cmake --build build --parallel
+
+  # ── Cross-compile: ZynqMP (aarch64) ────────────────────────────────────────
+  cross-aarch64:
+    name: Cross-compile (aarch64-linux-gnu)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: sudo apt-get install -y --no-install-recommends g++-aarch64-linux-gnu
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++
+
+      - name: Build
+        run: cmake --build build --parallel
