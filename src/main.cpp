@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <getopt.h>
 #include <string>
 
 static void usage(const char* prog)
@@ -75,59 +76,62 @@ struct Args {
 
 static bool parse_args(int argc, char** argv, Args& a)
 {
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
+    enum {
+        OPT_MANAGER = 256,
+        OPT_FIRMWARE,
+        OPT_DTBO,
+        OPT_NAME,
+        OPT_FLAGS,
+        OPT_TIMEOUT,
+        OPT_REMOVE,
+        OPT_REPLACE,
+    };
 
-        auto next = [&]() -> const char* {
-            if (i + 1 >= argc) {
-                std::fprintf(stderr, "error: %s requires an argument\n", argv[i]);
-                return nullptr;
-            }
-            return argv[++i];
-        };
+    static const option long_opts[] = {
+        { "help",     no_argument,       nullptr, 'h'          },
+        { "method",   required_argument, nullptr, 'm'          },
+        { "verbose",  no_argument,       nullptr, 'v'          },
+        { "manager",  required_argument, nullptr, OPT_MANAGER  },
+        { "firmware", required_argument, nullptr, OPT_FIRMWARE },
+        { "dtbo",     required_argument, nullptr, OPT_DTBO     },
+        { "name",     required_argument, nullptr, OPT_NAME     },
+        { "flags",    required_argument, nullptr, OPT_FLAGS    },
+        { "timeout",  required_argument, nullptr, OPT_TIMEOUT  },
+        { "remove",   no_argument,       nullptr, OPT_REMOVE   },
+        { "replace",  no_argument,       nullptr, OPT_REPLACE  },
+        { nullptr,    0,                 nullptr, 0            },
+    };
 
-        if (arg == "--help" || arg == "-h") {
-            return false;
-        } else if (arg == "--method" || arg == "-m") {
-            const char* m = next(); if (!m) return false;
-            if (std::strcmp(m, "bitstream") == 0)    a.method = Method::Bitstream;
-            else if (std::strcmp(m, "overlay") == 0) a.method = Method::Overlay;
-            else { std::fprintf(stderr, "error: unknown method '%s'\n", m); return false; }
-        } else if (arg == "--manager") {
-            const char* v = next(); if (!v) return false;
-            a.manager_path = v;
-        } else if (arg == "--firmware") {
-            const char* v = next(); if (!v) return false;
-            a.firmware_dir = v;
-        } else if (arg == "--dtbo") {
-            const char* v = next(); if (!v) return false;
-            a.dtbo = v;
-        } else if (arg == "--name") {
-            const char* v = next(); if (!v) return false;
-            a.overlay_name = v;
-        } else if (arg == "--flags") {
-            const char* v = next(); if (!v) return false;
-            a.flags = static_cast<uint32_t>(std::strtoul(v, nullptr, 0));
-        } else if (arg == "--timeout") {
-            const char* v = next(); if (!v) return false;
-            a.timeout_ms = std::atoi(v);
-        } else if (arg == "--verbose") {
-            a.verbose = true;
-        } else if (arg == "--remove") {
-            a.remove_overlay = true;
-        } else if (arg == "--replace") {
-            a.replace = true;
-        } else if (arg[0] != '-') {
-            if (!a.bitstream.empty()) {
-                std::fprintf(stderr, "error: multiple bitstream paths given\n");
-                return false;
-            }
-            a.bitstream = arg;
-        } else {
-            std::fprintf(stderr, "error: unknown option '%s'\n", arg.c_str());
-            return false;
+    int opt;
+    while ((opt = getopt_long(argc, argv, "hm:v", long_opts, nullptr)) != -1) {
+        switch (opt) {
+        case 'h': return false;
+        case 'v': a.verbose = true; break;
+        case 'm':
+            if (std::strcmp(optarg, "bitstream") == 0)    a.method = Method::Bitstream;
+            else if (std::strcmp(optarg, "overlay") == 0) a.method = Method::Overlay;
+            else { std::fprintf(stderr, "error: unknown method '%s'\n", optarg); return false; }
+            break;
+        case OPT_MANAGER:  a.manager_path  = optarg; break;
+        case OPT_FIRMWARE: a.firmware_dir  = optarg; break;
+        case OPT_DTBO:     a.dtbo          = optarg; break;
+        case OPT_NAME:     a.overlay_name  = optarg; break;
+        case OPT_FLAGS:    a.flags         = static_cast<uint32_t>(std::strtoul(optarg, nullptr, 0)); break;
+        case OPT_TIMEOUT:  a.timeout_ms    = std::atoi(optarg); break;
+        case OPT_REMOVE:   a.remove_overlay = true; break;
+        case OPT_REPLACE:  a.replace       = true; break;
+        default: return false;
         }
     }
+
+    if (optind < argc) {
+        if (argc - optind > 1) {
+            std::fprintf(stderr, "error: multiple bitstream paths given\n");
+            return false;
+        }
+        a.bitstream = argv[optind];
+    }
+
     return true;
 }
 
