@@ -15,6 +15,7 @@
 
 #include <cstdio>
 #include <fstream>
+#include <sys/mount.h>
 #include <vector>
 
 namespace fpga {
@@ -33,16 +34,27 @@ bool DtOverlay::is_mounted() const
     return std::filesystem::is_directory(configfs_ / "device-tree", ec);
 }
 
+bool DtOverlay::ensure_mounted()
+{
+    if (is_mounted())
+        return true;
+
+    if (::mount("configfs", configfs_.c_str(), "configfs", 0, nullptr) != 0) {
+        std::perror("error: cannot mount configfs");
+        std::fprintf(stderr, "       run: mount -t configfs configfs %s\n",
+                     configfs_.c_str());
+        return false;
+    }
+
+    std::fprintf(stderr, "info: configfs mounted at %s\n", configfs_.c_str());
+    return true;
+}
+
 bool DtOverlay::apply(const std::string& name, const std::filesystem::path& dtbo_path,
                       bool replace)
 {
-    if (!is_mounted()) {
-        std::fprintf(stderr,
-            "error: configfs not mounted at %s\n"
-            "       run: mount -t configfs configfs /sys/kernel/config\n",
-            configfs_.c_str());
+    if (!ensure_mounted())
         return false;
-    }
 
     std::error_code ec;
     if (!std::filesystem::exists(dtbo_path, ec)) {

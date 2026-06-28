@@ -47,6 +47,7 @@ public:
     bool is_mounted() const;
 
 private:
+    bool ensure_mounted();
     std::filesystem::path overlay_dir(const std::string& name) const;
 
     std::filesystem::path configfs_;
