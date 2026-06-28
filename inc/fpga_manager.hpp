@@ -30,6 +30,31 @@ enum FpgaFlags : uint32_t {
     FpgaFlagCompressedBitstream = 1u << 4, // FPGA_MGR_COMPRESSED_BITSTREAM
 };
 
+enum class FpgaError {
+    Ok,
+    ManagerNotFound,
+    BitstreamNotFound,
+    FirmwareCopyFailed,
+    FlagsWriteFailed,
+    TriggerAttrNotFound,
+    TriggerWriteFailed,
+    StateError,
+    Timeout,
+};
+
+struct LoadResult {
+    FpgaError   error   = FpgaError::Ok;
+    std::string message;
+    std::string state;
+
+    LoadResult() = default;
+    LoadResult(FpgaError e, std::string msg = {}, std::string st = {})
+        : error(e), message(std::move(msg)), state(std::move(st)) {}
+
+    bool ok() const { return error == FpgaError::Ok; }
+    explicit operator bool() const { return ok(); }
+};
+
 struct FpgaManagerConfig {
     std::filesystem::path manager_path = "/sys/class/fpga_manager/fpga0";
     std::filesystem::path firmware_dir = "/lib/firmware";
@@ -43,7 +68,7 @@ public:
 
     // Copy bitstream to /lib/firmware and trigger load via sysfs.
     // Supported on Xilinx BSP kernels and mainline >=4.12 with fpga-region sysfs.
-    bool load(const std::filesystem::path& bitstream, uint32_t flags = FpgaFlagNone);
+    LoadResult load(const std::filesystem::path& bitstream, uint32_t flags = FpgaFlagNone);
 
     // Raw state string from sysfs (e.g. "operating", "programming")
     std::string state() const;
@@ -55,9 +80,9 @@ public:
     bool available() const;
 
 private:
-    bool write_flags(uint32_t flags);
-    bool trigger(const std::string& firmware_name);
-    bool wait_operating();
+    LoadResult write_flags(uint32_t flags);
+    LoadResult trigger(const std::string& firmware_name);
+    LoadResult wait_operating();
 
     FpgaManagerConfig cfg_;
 };

@@ -40,46 +40,46 @@ std::string FpgaManager::name() const
     return utils::read_sysfs(cfg_.manager_path / "name");
 }
 
-bool FpgaManager::load(const std::filesystem::path& bitstream, uint32_t flags)
+LoadResult FpgaManager::load(const std::filesystem::path& bitstream, uint32_t flags)
 {
-    if (!available()) {
-        std::fprintf(stderr, "error: fpga manager not found at %s\n",
-                     cfg_.manager_path.c_str());
-        return false;
-    }
+    if (!available())
+        return {FpgaError::ManagerNotFound,
+                "fpga manager not found at " + cfg_.manager_path.string()};
 
     if (cfg_.verbose)
         std::printf("[fpga] manager: %s\n", cfg_.manager_path.c_str());
 
+    std::error_code ec;
+    if (!std::filesystem::exists(bitstream, ec))
+        return {FpgaError::BitstreamNotFound, "bitstream not found: " + bitstream.string()};
+
     std::string firmware_name;
     if (!utils::copy_firmware(bitstream, cfg_.firmware_dir, firmware_name))
-        return false;
+        return {FpgaError::FirmwareCopyFailed,
+                "failed to copy " + bitstream.string() + " to " + cfg_.firmware_dir.string()};
 
     if (cfg_.verbose)
         std::printf("[fpga] firmware: %s/%s\n",
                     cfg_.firmware_dir.c_str(), firmware_name.c_str());
 
-    if (!write_flags(flags))
-        return false;
-
-    if (!trigger(firmware_name))
-        return false;
-
+    if (auto r = write_flags(flags); !r) return r;
+    if (auto r = trigger(firmware_name); !r) return r;
     return wait_operating();
 }
 
-bool FpgaManager::write_flags(uint32_t flags)
+LoadResult FpgaManager::write_flags(uint32_t flags)
 {
     auto node = cfg_.manager_path / "flags";
-    // Node may not exist on all kernel versions; skip if absent
     std::error_code ec;
     if (!std::filesystem::exists(node, ec))
-        return true;
+        return {FpgaError::Ok};
 
-    return utils::write_sysfs(node, std::to_string(flags));
+    if (!utils::write_sysfs(node, std::to_string(flags)))
+        return {FpgaError::FlagsWriteFailed, "cannot write flags to " + node.string()};
+    return {FpgaError::Ok};
 }
 
-bool FpgaManager::trigger(const std::string& firmware_name)
+LoadResult FpgaManager::trigger(const std::string& firmware_name)
 {
     // Mainline kernels >=4.12 expose "firmware_name"; older Xilinx BSPs use "firmware"
     for (const char* attr : {"firmware_name", "firmware"}) {
@@ -90,22 +90,18 @@ bool FpgaManager::trigger(const std::string& firmware_name)
         if (cfg_.verbose)
             std::printf("[fpga] writing '%s' to %s\n", firmware_name.c_str(), node.c_str());
 
-        if (!utils::write_sysfs(node, firmware_name)) {
-            std::fprintf(stderr, "error: failed to trigger FPGA load via %s\n", node.c_str());
-            return false;
-        }
-        return true;
+        if (!utils::write_sysfs(node, firmware_name))
+            return {FpgaError::TriggerWriteFailed,
+                    "failed to trigger FPGA load via " + node.string()};
+        return {FpgaError::Ok};
     }
 
-    std::fprintf(stderr,
-        "error: no firmware trigger attribute found under %s\n"
-        "       (tried 'firmware_name' and 'firmware')\n"
-        "       Use --method overlay with a .dtbo for mainline kernels.\n",
-        cfg_.manager_path.c_str());
-    return false;
+    return {FpgaError::TriggerAttrNotFound,
+            "no firmware trigger attribute found under " + cfg_.manager_path.string() +
+            " (tried 'firmware_name' and 'firmware')"};
 }
 
-bool FpgaManager::wait_operating()
+LoadResult FpgaManager::wait_operating()
 {
     using clock = std::chrono::steady_clock;
     auto deadline = clock::now() + cfg_.timeout;
@@ -117,24 +113,20 @@ bool FpgaManager::wait_operating()
             std::printf("[fpga] state: %s\n", s.c_str());
 
         if (s == kStateOperating)
-            return true;
+            return {FpgaError::Ok, {}, s};
 
-        if (s.find("error") != std::string::npos) {
-            std::fprintf(stderr, "error: FPGA manager entered error state: '%s'\n", s.c_str());
-            return false;
-        }
-        if (s == "unknown") {
-            std::fprintf(stderr,
-                "error: FPGA manager state is 'unknown' after programming request\n");
-            return false;
-        }
+        if (s.find("error") != std::string::npos)
+            return {FpgaError::StateError, "FPGA manager entered error state: '" + s + "'", s};
+
+        if (s == "unknown")
+            return {FpgaError::StateError,
+                    "FPGA manager state is 'unknown' after programming request", s};
 
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
-    std::fprintf(stderr, "error: timeout waiting for FPGA state 'operating' (last: %s)\n",
-                 state().c_str());
-    return false;
+    std::string s = state();
+    return {FpgaError::Timeout, "timeout waiting for FPGA state 'operating'", s};
 }
 
 } // namespace fpga

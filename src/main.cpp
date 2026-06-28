@@ -215,8 +215,11 @@ int main(int argc, char** argv)
         cfg.verbose      = a.verbose;
 
         fpga::FpgaManager mgr(cfg);
-        if (!mgr.load(a.bitstream, a.flags))
+        auto result = mgr.load(a.bitstream, a.flags);
+        if (!result) {
+            std::fprintf(stderr, "error: %s\n", result.message.c_str());
             return EXIT_FAILURE;
+        }
 
         std::printf("FPGA programmed: state=%s\n", mgr.state().c_str());
 

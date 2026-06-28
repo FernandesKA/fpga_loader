@@ -24,29 +24,21 @@ bool copy_firmware(const std::filesystem::path& src,
                    std::string& out_name)
 {
     std::error_code ec;
-    if (!std::filesystem::exists(src, ec)) {
-        std::fprintf(stderr, "error: bitstream not found: %s\n", src.c_str());
+    if (!std::filesystem::exists(src, ec))
         return false;
-    }
 
     out_name = src.filename().string();
     std::filesystem::path dst = firmware_dir / out_name;
 
-    if (std::filesystem::equivalent(src, dst, ec)) {
+    if (std::filesystem::equivalent(src, dst, ec))
         return true;
-    }
 
     std::filesystem::copy_file(
         src, dst,
         std::filesystem::copy_options::overwrite_existing,
         ec);
 
-    if (ec) {
-        std::fprintf(stderr, "error: copy %s -> %s: %s\n",
-                     src.c_str(), dst.c_str(), ec.message().c_str());
-        return false;
-    }
-    return true;
+    return !ec;
 }
 
 bool write_sysfs(const std::filesystem::path& node, const std::string& value)

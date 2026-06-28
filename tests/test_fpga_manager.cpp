@@ -110,13 +110,17 @@ TEST_CASE("FpgaManager: load() fails when manager not available") {
     FpgaManagerConfig cfg;
     cfg.manager_path = tmp.path / "nonexistent";
     cfg.firmware_dir = tmp.path;
-    REQUIRE_FALSE(FpgaManager(cfg).load(tmp.path / "fake.bit"));
+    auto r = FpgaManager(cfg).load(tmp.path / "fake.bit");
+    REQUIRE_FALSE(r);
+    REQUIRE(r.error == FpgaError::ManagerNotFound);
 }
 
 TEST_CASE("FpgaManager: load() fails when bitstream file does not exist") {
     FakeManager fake;
     FpgaManager mgr(fake.make_config());
-    REQUIRE_FALSE(mgr.load(fake.tmp.path / "missing.bit"));
+    auto r = mgr.load(fake.tmp.path / "missing.bit");
+    REQUIRE_FALSE(r);
+    REQUIRE(r.error == FpgaError::BitstreamNotFound);
 }
 
 TEST_CASE("FpgaManager: load() fails when no firmware trigger attribute exists") {
@@ -124,7 +128,9 @@ TEST_CASE("FpgaManager: load() fails when no firmware trigger attribute exists")
     fake.set_state("operating");
     // Neither 'firmware_name' nor 'firmware' attr in manager dir
     FpgaManager mgr(fake.make_config());
-    REQUIRE_FALSE(mgr.load(fake.bitstream));
+    auto r = mgr.load(fake.bitstream);
+    REQUIRE_FALSE(r);
+    REQUIRE(r.error == FpgaError::TriggerAttrNotFound);
 }
 
 TEST_CASE("FpgaManager: load() fails on error state") {
@@ -132,7 +138,10 @@ TEST_CASE("FpgaManager: load() fails on error state") {
     fake.create_attr("firmware_name");
     fake.set_state("error_bitfile");
     FpgaManager mgr(fake.make_config());
-    REQUIRE_FALSE(mgr.load(fake.bitstream));
+    auto r = mgr.load(fake.bitstream);
+    REQUIRE_FALSE(r);
+    REQUIRE(r.error == FpgaError::StateError);
+    REQUIRE(r.state == "error_bitfile");
 }
 
 TEST_CASE("FpgaManager: load() fails on unknown state") {
@@ -140,16 +149,20 @@ TEST_CASE("FpgaManager: load() fails on unknown state") {
     fake.create_attr("firmware_name");
     fake.set_state("unknown");
     FpgaManager mgr(fake.make_config());
-    REQUIRE_FALSE(mgr.load(fake.bitstream));
+    auto r = mgr.load(fake.bitstream);
+    REQUIRE_FALSE(r);
+    REQUIRE(r.error == FpgaError::StateError);
 }
 
 TEST_CASE("FpgaManager: load() times out when state stays in 'programming'") {
     FakeManager fake;
     fake.create_attr("firmware_name");
     fake.set_state("programming");
-    // Short timeout so the test runs quickly
     FpgaManager mgr(fake.make_config(std::chrono::milliseconds{120}));
-    REQUIRE_FALSE(mgr.load(fake.bitstream));
+    auto r = mgr.load(fake.bitstream);
+    REQUIRE_FALSE(r);
+    REQUIRE(r.error == FpgaError::Timeout);
+    REQUIRE(r.state == "programming");
 }
 
 // ── load() success paths ──────────────────────────────────────────────────────
