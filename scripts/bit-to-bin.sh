@@ -73,10 +73,9 @@ echo "  Target arch: $ARCH"
 BIF_FILE="bitstream_temp.bif"
 echo "all : { $INPUT_BIT }" > "$BIF_FILE"
 
-# Путь к bootgen (настройте под вашу установку Vivado)
-BOOTGEN="bootgen"
-# Если bootgen не в PATH, раскомментируйте и настройте путь:
-BOOTGEN="/home/fka/tools/Xilinx/2025.1/Vitis/bin/bootgen"
+# Путь к bootgen: используем переменную окружения BOOTGEN, если задана,
+# иначе ищем в PATH.
+BOOTGEN="${BOOTGEN:-bootgen}"
 
 if ! command -v $BOOTGEN &> /dev/null; then
     echo "Error: bootgen not found in PATH"
